@@ -1,6 +1,7 @@
 package com.plcoding
 
 import com.plcoding.routes.createRoomRoute
+import com.plcoding.routes.getRoomsRoute
 import com.plcoding.session.DrawingSession
 import io.ktor.application.*
 import io.ktor.response.*
@@ -43,6 +44,7 @@ fun Application.module(testing: Boolean = false) {
 
     install(Routing){
         createRoomRoute()
+        getRoomsRoute()
     }
 }
 
