@@ -1,10 +1,8 @@
 package com.plcoding.data
 
-import com.plcoding.data.models.Announcement
-import com.plcoding.data.models.ChosenWord
-import com.plcoding.data.models.GameState
-import com.plcoding.data.models.PhaseChange
+import com.plcoding.data.models.*
 import com.plcoding.gson
+import com.plcoding.util.getRandomWords
 import com.plcoding.util.transformToUnderscores
 import com.plcoding.util.words
 import io.ktor.http.cio.websocket.*
@@ -23,6 +21,7 @@ class Room(
     private var winningPlayers = listOf<String>()
     private var word: String? = null
     private var currentWords: List<String>? = null
+    private var drawingPlayerIndex = 0
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -150,7 +149,13 @@ class Room(
     }
 
     private fun newRound(){
-
+        currentWords = getRandomWords(3)
+        val newWords = NewWords(currentWords!!)
+        nextDrawingPlayer()
+        GlobalScope.launch {
+            drawingPlayer?.socket?.send(Frame.Text(gson.toJson(newWords)))
+            timeAndNotify(DELAY_NEW_ROUND_TO_GAME_RUNNING)
+        }
     }
     private fun gameRunning(){
         winningPlayers = listOf()
@@ -194,6 +199,21 @@ class Room(
             broadcast(gson.toJson(phaseChange))
         }
     }
+
+    private fun nextDrawingPlayer(){
+        drawingPlayer?.isDrawing = false
+        if (players.isEmpty()){
+            return
+        }
+
+        drawingPlayer = if(drawingPlayerIndex <= players.size -1) {
+            players[drawingPlayerIndex]
+        } else players.last()
+
+        if(drawingPlayerIndex < players.size - 1) drawingPlayerIndex++
+        else drawingPlayerIndex = 0
+    }
+
     enum class Phase {
         WAITING_FOR_PLAYERS,
         WAITING_TO_START,
