@@ -1,15 +1,16 @@
 package com.plcoding.routes
 
 import com.google.gson.JsonParser
+import com.plcoding.data.Player
 import com.plcoding.data.Room
-import com.plcoding.data.models.BaseModel
-import com.plcoding.data.models.ChatMessage
-import com.plcoding.data.models.DrawData
+import com.plcoding.data.models.*
 import com.plcoding.gson
 import com.plcoding.server
 import com.plcoding.session.DrawingSession
+import com.plcoding.util.Constants.TYPE_ANNOUNCEMENT
 import com.plcoding.util.Constants.TYPE_CHAT_MESSAGE
 import com.plcoding.util.Constants.TYPE_DRAW_DATA
+import com.plcoding.util.Constants.TYPE_JOIN_ROOM_HANDSHAKE
 import io.ktor.http.cio.websocket.*
 import io.ktor.routing.*
 import io.ktor.sessions.*
@@ -20,10 +21,27 @@ fun Route.gameWebSocketRoute(){
     route("/ws/draw"){
         standardWebSocket { socket, clientId, message, payload ->
             when(payload){
+                is JoinRoomHandshake -> {
+                    val room = server.rooms[payload.roomName]
+                    if (room == null){
+                        val gameError = GameError(GameError.ERROR_ROOM_NOT_FOUND)
+                        socket.send(Frame.Text(gson.toJson(gameError)))
+                        return@standardWebSocket
+                    }
+                    val player = Player(
+                        payload.username,
+                        socket,
+                        payload.clientId
+                    )
+                    server.playerJoined(player)
+                    if(!room.containsPlayer(player.username)){
+                        room.addPlayer(player.clientId, player.username, socket)
+                    }
+                }
                 is DrawData -> {
                     val room = server.rooms[payload.roomName] ?: return@standardWebSocket
                     if(room.phase == Room.Phase.GAME_RUNNING){
-                        room.broadcastToAllExept(message, clientId)
+                        room.broadcastToAllExcept(message, clientId)
                     }
                 }
                 is ChatMessage -> {
@@ -56,6 +74,8 @@ fun Route.standardWebSocket(
                     val type = when (jsonObject.get("type").asString) {
                         TYPE_CHAT_MESSAGE -> ChatMessage::class.java
                         TYPE_DRAW_DATA -> DrawData::class.java
+                        TYPE_ANNOUNCEMENT -> Announcement::class.java
+                        TYPE_JOIN_ROOM_HANDSHAKE -> JoinRoomHandshake::class.java
                         else -> BaseModel::class.java
                     }
                     val payload = gson.fromJson(message, type)

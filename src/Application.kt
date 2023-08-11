@@ -2,6 +2,7 @@ package com.plcoding
 
 import com.google.gson.Gson
 import com.plcoding.routes.createRoomRoute
+import com.plcoding.routes.gameWebSocketRoute
 import com.plcoding.routes.getRoomsRoute
 import com.plcoding.routes.joinRoomRoute
 import com.plcoding.session.DrawingSession
@@ -49,6 +50,7 @@ fun Application.module(testing: Boolean = false) {
         createRoomRoute()
         getRoomsRoute()
         joinRoomRoute()
+        gameWebSocketRoute()
     }
 }
 
