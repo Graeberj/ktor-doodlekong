@@ -31,6 +31,7 @@ class Room(
     private val leftPlayers = ConcurrentHashMap<String, Pair<Player, Int>>()
 
     private var currentRoundDrawData: List<String> = emptyList()
+    var lastDrawData: DrawData? = null
 
     private var phaseChangedListener: ((Phase) -> Unit)? = null
     var phase = Phase.WAITING_FOR_PLAYERS
@@ -67,6 +68,15 @@ class Room(
 
     fun addSerializedDrawInfo(drawAction: String){
         currentRoundDrawData = currentRoundDrawData + drawAction
+    }
+
+    private suspend fun finishOffDrawing() {
+        lastDrawData?.let {
+            if(currentRoundDrawData.isNotEmpty() && it.motionEvent == 2){
+                val findDrawData = it.copy(motionEvent = 1)
+                broadcast(gson.toJson(findDrawData))
+            }
+        }
     }
 
     suspend fun addPlayer(
@@ -176,9 +186,15 @@ class Room(
             }
             phase = when(phase) {
                 Phase.WAITING_TO_START -> Phase.NEW_ROUND
-                Phase.GAME_RUNNING -> Phase.SHOW_WORD
+                Phase.GAME_RUNNING -> {
+                    finishOffDrawing()
+                    Phase.SHOW_WORD
+                }
                 Phase.SHOW_WORD -> Phase.NEW_ROUND
-                Phase.NEW_ROUND -> Phase.GAME_RUNNING
+                Phase.NEW_ROUND -> {
+                    word = null
+                    Phase.GAME_RUNNING
+                }
                 else -> Phase.WAITING_FOR_PLAYERS
             }
         }
