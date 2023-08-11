@@ -52,9 +52,11 @@ fun Route.gameWebSocketRoute(){
                     room.setWordAndSetToRunning(payload.chosenWord)
                 }
                 is ChatMessage -> {
-
+                    val room = server.rooms[payload.roomName] ?: return@standardWebSocket
+                    if(!room.checkWordAndNotifyPlayers(payload)){
+                        room.broadcast(message)
+                    }
                 }
-
             }
         }
     }
